@@ -1,47 +1,27 @@
-import os  
-import logging  
-from fastapi import APIRouter, File, UploadFile, HTTPException  
-from dotenv import load_dotenv  
-from blob_service import get_blob_service_client, upload_file_to_blob  
-  
-# Load environment variables  
-load_dotenv()  
-  
-# Configure logging  
-logging.basicConfig(  
-    level=logging.INFO,  
-    format="%(asctime)s - %(levelname)s - %(message)s"  
-)  
-logger = logging.getLogger(__name__)  
-  
-# Azure Blob Storage settings  
-AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")  
-AZURE_BLOB_CONTAINER_NAME = os.getenv("AZURE_BLOB_CONTAINER_NAME", "local-uploads")  
-  
-router = APIRouter()  
-  
-@router.post("/upload")  
-async def upload_file(file: UploadFile = File(...)):  
-    """API endpoint to upload a file to Azure Blob Storage."""  
-    if not AZURE_STORAGE_CONNECTION_STRING:  
-        raise HTTPException(status_code=500, detail="Azure Storage connection string not configured.")  
-  
-    try:  
-        blob_service_client = get_blob_service_client(AZURE_STORAGE_CONNECTION_STRING)  
-        file_content = await file.read()  
-  
-        success = upload_file_to_blob(  
-            blob_service_client=blob_service_client,  
-            container_name=AZURE_BLOB_CONTAINER_NAME,  
-            file_name=file.filename,  
-            file_content=file_content  
-        )  
-  
-        if success:  
-            return {"status": "success", "filename": file.filename}  
-        else:  
-            raise HTTPException(status_code=500, detail="Failed to upload file to Azure Blob Storage.")  
-  
-    except Exception as e:  
-        logger.critical(f"Error in upload_file API: {e}")  
-        raise HTTPException(status_code=500, detail=str(e))  
+from fastapi import APIRouter, File, UploadFile, HTTPException
+from file_processor import process_and_upload_file
+import os
+
+router = APIRouter()
+
+# Placeholders for your Azure connection details
+AZURE_CONNECTION_STRING = os.environ.get("AZURE_CONNECTION_STRING", "your_connection_string")
+AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "your_container_name")
+
+@router.post("/uploadfile/")
+async def create_upload_file(file: UploadFile = File(...)):
+    # For security reasons, it's better to save the uploaded file to a temporary location
+    # and then process it from there, rather than using the raw file path.
+    temp_file_path = f"temp_{file.filename}"
+    with open(temp_file_path, "wb") as buffer:
+        buffer.write(await file.read())
+
+    result = process_and_upload_file(temp_file_path, AZURE_CONNECTION_STRING, AZURE_CONTAINER_NAME)
+
+    # Clean up the temporary file
+    os.remove(temp_file_path)
+
+    if "successfully" in result:
+        return {"message": result}
+    else:
+        raise HTTPException(status_code=400, detail=result)
