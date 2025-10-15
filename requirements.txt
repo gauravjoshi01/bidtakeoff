@@ -1,0 +1,10 @@
+Office365-REST-Python-Client==2.6.2  
+fastapi  
+uvicorn  
+azure-storage-blob  
+python-dotenv  
+azure-monitor-opentelemetry  
+azure-core  
+opentelemetry-api  
+opentelemetry-sdk  
+python-multipart
